@@ -3,6 +3,8 @@
 -- Copyright Kepler Project 2005 (http://www.keplerproject.org/remdebug)
 --
 
+print "RemDebug for LuaIDE"
+
 local socket = require"socket"
 local lfs = require"lfs"
 local debug = require"debug"
@@ -29,7 +31,7 @@ local function set_breakpoint(file, line)
   if not breakpoints[file] then
     breakpoints[file] = {}
   end
-  breakpoints[file][line] = true  
+  breakpoints[file][line] = true
 end
 
 local function remove_breakpoint(file, line)
@@ -91,8 +93,8 @@ local function capture_vars()
   setmetatable(vars, { __index = getfenv(func), __newindex = getfenv(func) })
   return vars
 end
-
-local function break_dir(path) 
+--[[
+local function break_dir(path)
   local paths = {}
   path = string.gsub(path, "\\", "/")
   for w in string.gfind(path, "[^/]+") do
@@ -101,8 +103,8 @@ local function break_dir(path)
   return paths
 end
 
-local function merge_paths(path1, path2)
-  if path2:sub(1,1) == '/' then return path2 end
+local function merge_paths(path1, path2) -- TODO fix fow windows paths
+  if path2:sub(1,1) == '/' then return path2 end -- unix paths
   local paths1 = break_dir(path1)
   local paths2 = break_dir(path2)
   for i, path in ipairs(paths2) do
@@ -114,18 +116,26 @@ local function merge_paths(path1, path2)
   end
   return table.concat(paths1, "/")
 end
-
+--]]
 local function debug_hook(event, line)
   if event == "call" then
     stack_level = stack_level + 1
   elseif event == "return" or event == "tail return" then
     stack_level = stack_level - 1
   else
-    local file = debug.getinfo(2, "S").source
-    if string.find(file, "@") == 1 then
-      file = string.sub(file, 2)
-    end
-    file = merge_paths(lfs.currentdir(), file)
+    -- get whole file path
+    local file = debug.getinfo(2, "S").short_src
+	local dir = lfs.currentdir()
+	if string.sub(dir, 1, 1) ~= '/'
+	then -- widnows
+		dir = dir .. '\\'
+		-- if file is on other partition, file got whole path
+		if string.find(file, ":") then dir = "" end
+	else -- unix
+		dir = dir .. '/'
+	end
+	file = dir .. file
+
     local vars = capture_vars()
     table.foreach(watches, function (index, value)
       setfenv(value, vars)
@@ -147,7 +157,7 @@ end
 local function debugger_loop(server)
   local command
   local eval_env = {}
-  
+
   while true do
     local line, status = server:receive()
     command = string.sub(line, string.find(line, "^[A-Z]+"))
@@ -170,7 +180,7 @@ local function debugger_loop(server)
       end
     elseif command == "EXEC" then
       local _, _, chunk = string.find(line, "^[A-Z]+%s+(.+)$")
-      if chunk then 
+      if chunk then
         local func = loadstring(chunk)
         local status, res
         if func then
@@ -179,7 +189,7 @@ local function debugger_loop(server)
         end
         res = tostring(res)
         if status then
-          server:send("200 OK " .. string.len(res) .. "\n") 
+          server:send("200 OK " .. string.len(res) .. "\n")
           server:send(res)
         else
           server:send("401 Error in Expression " .. string.len(res) .. "\n")
@@ -190,12 +200,12 @@ local function debugger_loop(server)
       end
     elseif command == "SETW" then
       local _, _, exp = string.find(line, "^[A-Z]+%s+(.+)$")
-      if exp then 
+      if exp then
         local func = loadstring("return(" .. exp .. ")")
         local newidx = table.getn(watches) + 1
         watches[newidx] = func
         table.setn(watches, newidx)
-        server:send("200 OK " .. newidx .. "\n") 
+        server:send("200 OK " .. newidx .. "\n")
       else
         server:send("400 Bad Request\n")
       end
@@ -204,7 +214,7 @@ local function debugger_loop(server)
       index = tonumber(index)
       if index then
         watches[index] = nil
-        server:send("200 OK\n") 
+        server:send("200 OK\n")
       else
         server:send("400 Bad Request\n")
       end
@@ -276,7 +286,7 @@ function start()
   pcall(require, "remdebug.config")
   local server = socket.connect(controller_host, controller_port)
   if server then
-    _TRACEBACK = function (message) 
+    _TRACEBACK = function (message)
       local err = debug.traceback(message)
       server:send("401 Error in Execution " .. string.len(err) .. "\n")
       server:send(err)
@@ -287,4 +297,3 @@ function start()
     return coroutine.resume(coro_debugger, server)
   end
 end
-
