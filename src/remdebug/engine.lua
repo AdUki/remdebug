@@ -1,9 +1,7 @@
 --
--- RemDebug 1.0 Beta
+-- RemDebug for LuaIDE
 -- Copyright Kepler Project 2005 (http://www.keplerproject.org/remdebug)
 --
-
-print "RemDebug for LuaIDE"
 
 local socket = require"socket"
 local lfs = require"lfs"
@@ -126,6 +124,8 @@ local function debug_hook(event, line)
     -- get whole file path
     local file = debug.getinfo(2, "S").short_src
 	local dir = lfs.currentdir()
+print ("file: " .. file)
+print ("dir: " .. dir)
 	if string.sub(dir, 1, 1) ~= '/'
 	then -- widnows
 		dir = dir .. '\\'
@@ -133,6 +133,7 @@ local function debug_hook(event, line)
 		if string.find(file, ":") then dir = "" end
 	else -- unix
 		dir = dir .. '/'
+		if string.sub(file, 1, 1) == '/' then dir = "" end
 	end
 	file = dir .. file
 
