@@ -91,7 +91,7 @@ local function capture_vars()
   setmetatable(vars, { __index = getfenv(func), __newindex = getfenv(func) })
   return vars
 end
---[[
+
 local function break_dir(path)
   local paths = {}
   path = string.gsub(path, "\\", "/")
@@ -101,8 +101,8 @@ local function break_dir(path)
   return paths
 end
 
-local function merge_paths(path1, path2) -- TODO fix fow windows paths
-  if path2:sub(1,1) == '/' then return path2 end -- unix paths
+local function merge_paths(path1, path2)
+  if path2:sub(1,1) == '/' then return path2 end
   local paths1 = break_dir(path1)
   local paths2 = break_dir(path2)
   for i, path in ipairs(paths2) do
@@ -114,7 +114,7 @@ local function merge_paths(path1, path2) -- TODO fix fow windows paths
   end
   return table.concat(paths1, "/")
 end
---]]
+
 local function debug_hook(event, line)
   if event == "call" then
     stack_level = stack_level + 1
@@ -122,18 +122,21 @@ local function debug_hook(event, line)
     stack_level = stack_level - 1
   else
     -- get whole file path
-    local file = debug.getinfo(2, "S").short_src
+	local file
 	local dir = lfs.currentdir()
 	if string.sub(dir, 1, 1) ~= '/'
 	then -- widnows
-		dir = dir .. '\\'
+		file = debug.getinfo(2, "S").short_src
 		-- if file is on other partition, file got whole path
-		if string.find(file, ":") then dir = "" end
+		if not string.find(file, ":") then
+			file = dir .. '\\' .. file
+		end
 	else -- unix
-		dir = dir .. '/'
-		if string.sub(file, 1, 1) == '/' then dir = "" end
+		file = debug.getinfo(2, "S").source -- at beginning '@'
+		file = merge_paths(dir, string.sub(file, 2))
 	end
-	file = dir .. file
+	-- print ("File: " .. file)
+	-- print ("Dir: " .. dir)
 
     local vars = capture_vars()
     table.foreach(watches, function (index, value)
