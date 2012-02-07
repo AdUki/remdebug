@@ -124,8 +124,6 @@ local function debug_hook(event, line)
     -- get whole file path
     local file = debug.getinfo(2, "S").short_src
 	local dir = lfs.currentdir()
-print ("file: " .. file)
-print ("dir: " .. dir)
 	if string.sub(dir, 1, 1) ~= '/'
 	then -- widnows
 		dir = dir .. '\\'
