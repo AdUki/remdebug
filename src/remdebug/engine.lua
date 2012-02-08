@@ -94,7 +94,6 @@ end
 
 local function break_dir(path)
   local paths = {}
-  path = string.gsub(path, "\\", "/")
   for w in string.gfind(path, "[^/]+") do
     table.insert(paths, w)
   end
@@ -127,9 +126,11 @@ local function debug_hook(event, line)
 	if string.sub(dir, 1, 1) ~= '/'
 	then -- widnows
 		file = debug.getinfo(2, "S").short_src
+		dir = string.gsub(dir, "\\", "/")
+		file = string.gsub(file, "\\", "/")
 		-- if file is on other partition, file got whole path
 		if not string.find(file, ":") then
-			file = dir .. '\\' .. file
+			file = merge_paths(dir, file)
 		end
 	else -- unix
 		file = debug.getinfo(2, "S").source -- at beginning '@'
@@ -164,7 +165,7 @@ local function debugger_loop(server)
     local line, status = server:receive()
     command = string.sub(line, string.find(line, "^[A-Z]+"))
     if command == "SETB" then
-      local _, _, _, filename, line = string.find(line, "^([A-Z]+)%s+([%w%p]+)%s+(%d+)$")
+      local _, _, filename, line = string.find(line, "^.... (.+) (%d+)$")
       if filename and line then
         filename = string.gsub(filename, "%%20", " ")
         set_breakpoint(filename, tonumber(line))
@@ -173,7 +174,7 @@ local function debugger_loop(server)
         server:send("400 Bad Request\n")
       end
     elseif command == "DELB" then
-      local _, _, _, filename, line = string.find(line, "^([A-Z]+)%s+([%w%p]+)%s+(%d+)$")
+      local _, _, filename, line = string.find(line, "^.... (.+) (%d+)$")
       if filename and line then
         remove_breakpoint(filename, tonumber(line))
         server:send("200 OK\n")
