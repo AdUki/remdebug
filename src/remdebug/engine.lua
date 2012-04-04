@@ -1,6 +1,7 @@
 --
 -- RemDebug for LuaIDE
 -- Copyright Kepler Project 2005 (http://www.keplerproject.org/remdebug)
+-- Copyright Simon Mikuda STU Fiit 2012
 --
 
 local socket = require"socket"
@@ -100,6 +101,7 @@ local function break_dir(path)
   return paths
 end
 
+-- TODO use microlight functions instead of this
 local function merge_paths(path1, path2)
   if path2:sub(1,1) == '/' then return path2 end
   local paths1 = break_dir(path1)
@@ -111,7 +113,8 @@ local function merge_paths(path1, path2)
       table.insert(paths1, path)
     end
   end
-  return table.concat(paths1, "/")
+  if path1:sub(1,1) == '/' then return "/" .. table.concat(paths1, "/")
+  else return table.concat(paths1, "/") end
 end
 
 local function debug_hook(event, line)
